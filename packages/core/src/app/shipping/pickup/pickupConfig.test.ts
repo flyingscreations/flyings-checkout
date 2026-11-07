@@ -1,5 +1,6 @@
 import {
     getLoadedPickupConfig,
+    isPickupPreview,
     loadPickupConfig,
     parsePickupConfig,
     resetPickupConfig,
@@ -38,6 +39,13 @@ describe('pickup configuration published by Product Hub', () => {
         expect(parsePickupConfig({ ...PUBLISHED, pickup_method_id: 0 })).toBeNull();
         expect(parsePickupConfig({ ...PUBLISHED, address: {} })).toBeNull();
         expect(parsePickupConfig('nope')).toBeNull();
+    });
+
+    it('previews pickup only with the explicit administrator flag', () => {
+        expect(isPickupPreview('?pickup_preview=1')).toBe(true);
+        expect(isPickupPreview('?x=1&pickup_preview=1')).toBe(true);
+        expect(isPickupPreview('')).toBe(false);
+        expect(isPickupPreview('?pickup_preview=10')).toBe(false);
     });
 
     it('loads once and caches a published configuration', async () => {
