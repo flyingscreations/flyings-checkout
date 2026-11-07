@@ -15,6 +15,7 @@ import {
     hasUnassignedLineItems,
     itemsRequireShipping,
 } from '../shipping';
+import { isPickupCheckout } from '../shipping/pickup/isPickupConsignment';
 
 import CheckoutStepType from './CheckoutStepType';
 
@@ -201,9 +202,14 @@ const getShippingStepStatus = createSelector(
     },
     ({ data }: CheckoutSelectors) => data.getConfig(),
     (shippingAddress, consignments, cart, shippingAddressFields, config) => {
-        const hasAddress = shippingAddress
-            ? isValidAddress(shippingAddress, shippingAddressFields, true)
-            : false;
+        // Flying S: a native pickup consignment carries the pickup location as
+        // its address, so no customer shipping address is required.
+        const isPickup = consignments ? isPickupCheckout(consignments) : false;
+        const hasAddress =
+            isPickup ||
+            (shippingAddress
+                ? isValidAddress(shippingAddress, shippingAddressFields, true)
+                : false);
         const hasOptions = consignments ? hasSelectedShippingOptions(consignments) : false;
         const hasUnassignedItems =
             cart && consignments ? hasUnassignedLineItems(consignments, cart.lineItems) : true;

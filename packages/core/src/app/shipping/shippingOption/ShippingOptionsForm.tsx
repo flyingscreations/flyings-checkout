@@ -8,6 +8,10 @@ import { TranslatedString } from '@bigcommerce/checkout/locale';
 
 import { withFormikExtended } from '../../common/form';
 import getRecommendedShippingOption from '../getRecommendedShippingOption';
+import isPickupConsignment from '../pickup/isPickupConsignment';
+import { getLoadedPickupConfig } from '../pickup/pickupConfig';
+import { withoutLegacyPickup } from '../pickup/pickupShippingOptions';
+import usePickupConfig from '../pickup/usePickupConfig';
 import { getShippingOptionIds } from '../utils';
 
 import { ConsignmentDetails } from './MultiShippingConsignmentDetails';
@@ -45,18 +49,28 @@ const ShippingOptionsForm = (
         setValues,
     } = props;
     const { analyticsTracker } = useAnalytics();
+    const { config: pickupConfig } = usePickupConfig();
+    const isNativePickupOffered = !!pickupConfig && !isMultiShippingMode;
 
     const selectDefaultShippingOptions = async ({ data }: CheckoutSelectors) => {
         const consignment = (data.getConsignments() || []).find(
-            ({ selectedShippingOption, availableShippingOptions: shippingOptions }) =>
-                !selectedShippingOption && shippingOptions,
+            (item) =>
+                !item.selectedShippingOption &&
+                // Flying S: never auto-select a shipping method for a pickup consignment.
+                !isPickupConsignment(item) &&
+                item.availableShippingOptions,
         );
 
         if (!consignment || !consignment.availableShippingOptions) {
             return;
         }
 
-        const { availableShippingOptions, id } = consignment;
+        const { id } = consignment;
+        const availableShippingOptions =
+            withoutLegacyPickup(
+                consignment.availableShippingOptions,
+                !!getLoadedPickupConfig() && !isMultiShippingMode,
+            ) || [];
         const recommendedOption = getRecommendedShippingOption(availableShippingOptions);
         const singleShippingOption =
             availableShippingOptions.length === 1 && availableShippingOptions[0];
@@ -127,7 +141,10 @@ const ShippingOptionsForm = (
                             consignment.selectedShippingOption &&
                             consignment.selectedShippingOption.id
                         }
-                        shippingOptions={consignment.availableShippingOptions}
+                        shippingOptions={withoutLegacyPickup(
+                            consignment.availableShippingOptions,
+                            isNativePickupOffered,
+                        )}
                     />
 
                     {(!consignment.availableShippingOptions ||

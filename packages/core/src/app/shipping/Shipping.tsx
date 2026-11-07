@@ -21,6 +21,10 @@ import { type MultiShippingFormValues } from './MultiShippingForm';
 import ShippingForm from './ShippingForm';
 import ShippingHeader from './ShippingHeader';
 import { type SingleShippingFormValues } from './SingleShippingForm';
+import FulfillmentChoice, { type FulfillmentMode } from './pickup/FulfillmentChoice';
+import { isPickupCheckout } from './pickup/isPickupConsignment';
+import PickupPanel from './pickup/PickupPanel';
+import usePickupConfig from './pickup/usePickupConfig';
 import StripeShipping from './stripeUPE/StripeShipping';
 
 export interface ShippingProps {
@@ -56,6 +60,7 @@ function Shipping({
 
     const {
         billingAddress,
+        cart,
         customerMessage,
         cartHasPromotionalItems,
         consignments,
@@ -78,6 +83,35 @@ function Shipping({
         userJourney: { hasCompanyAddressBook, hasAddressLabel },
     } = useCapabilities();
     const decode = (address: CustomerAddress) => decodeAddressLabel(address, hasAddressLabel);
+
+    // Flying S: "Ship to address" / "Pick up in store". Pickup is offered only
+    // when Product Hub publishes an enabled native pickup configuration.
+    const { config: pickupConfig } = usePickupConfig();
+    const [fulfillmentMode, setFulfillmentMode] = useState<FulfillmentMode>(() =>
+        isPickupCheckout(consignments) ? 'pickup' : 'ship',
+    );
+    const [isSwitchingFulfillment, setIsSwitchingFulfillment] = useState(false);
+    const canOfferPickup = !!pickupConfig && !isMultiShippingMode;
+
+    const handleFulfillmentChange = (mode: FulfillmentMode) => {
+        if (mode !== 'ship' || !isPickupCheckout(consignments)) {
+            setFulfillmentMode(mode);
+
+            return;
+        }
+
+        setIsSwitchingFulfillment(true);
+        deleteConsignments()
+            .then(() => setFulfillmentMode('ship'))
+            .catch((error) => {
+                if (error instanceof Error) {
+                    onUnhandledError(error);
+                }
+            })
+            .finally(() => setIsSwitchingFulfillment(false));
+    };
+
+    const handlePickupContinue = () => navigateNextStep(false);
 
     useEffect(() => {
         const initializeShipping = async () => {
@@ -253,24 +287,45 @@ function Shipping({
                     messageId="shipping.checkout_switched_to_single_shipping"
                     shouldShowCloseButton={false}
                 />
-                <ShippingHeader
-                    cartHasPromotionalItems={cartHasPromotionalItems}
-                    isMultiShippingMode={isMultiShippingMode}
-                    onMultiShippingChange={handleMultiShippingModeSwitch}
-                    shouldShowMultiShipping={shouldShowMultiShipping}
-                />
-                <ShippingForm
-                    cartHasChanged={cartHasChanged}
-                    isBillingSameAsShipping={isBillingSameAsShipping}
-                    isInitialValueLoaded={!isInitializing}
-                    isMultiShippingMode={isMultiShippingMode}
-                    onCreateAccount={onCreateAccount}
-                    onMultiShippingSubmit={handleMultiShippingSubmit}
-                    onSignIn={onSignIn}
-                    onSingleShippingSubmit={handleSingleShippingSubmit}
-                    onUnhandledError={onUnhandledError}
-                    setIsMultishippingMode={setIsMultishippingMode}
-                />
+                {canOfferPickup && pickupConfig && (
+                    <FulfillmentChoice
+                        isDisabled={isSwitchingFulfillment}
+                        mode={fulfillmentMode}
+                        onChange={handleFulfillmentChange}
+                        pickupLabel={pickupConfig.displayName}
+                    />
+                )}
+                {canOfferPickup && pickupConfig && cart && fulfillmentMode === 'pickup' ? (
+                    <PickupPanel
+                        cart={cart}
+                        config={pickupConfig}
+                        consignments={consignments}
+                        customerMessage={customerMessage}
+                        onContinue={handlePickupContinue}
+                        onUnhandledError={onUnhandledError}
+                    />
+                ) : (
+                    <>
+                        <ShippingHeader
+                            cartHasPromotionalItems={cartHasPromotionalItems}
+                            isMultiShippingMode={isMultiShippingMode}
+                            onMultiShippingChange={handleMultiShippingModeSwitch}
+                            shouldShowMultiShipping={shouldShowMultiShipping}
+                        />
+                        <ShippingForm
+                            cartHasChanged={cartHasChanged}
+                            isBillingSameAsShipping={isBillingSameAsShipping}
+                            isInitialValueLoaded={!isInitializing}
+                            isMultiShippingMode={isMultiShippingMode}
+                            onCreateAccount={onCreateAccount}
+                            onMultiShippingSubmit={handleMultiShippingSubmit}
+                            onSignIn={onSignIn}
+                            onSingleShippingSubmit={handleSingleShippingSubmit}
+                            onUnhandledError={onUnhandledError}
+                            setIsMultishippingMode={setIsMultishippingMode}
+                        />
+                    </>
+                )}
             </div>
         </AddressFormSkeleton>
     );

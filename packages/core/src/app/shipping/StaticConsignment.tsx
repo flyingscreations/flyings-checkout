@@ -9,6 +9,8 @@ import {
 
 import { AddressType, StaticAddress } from '../address';
 
+import isPickupConsignment from './pickup/isPickupConsignment';
+import StaticPickupConsignment from './pickup/StaticPickupConsignment';
 import { StaticShippingOption } from './shippingOption';
 import './StaticConsignment.scss';
 
@@ -28,6 +30,10 @@ const StaticConsignment: FunctionComponent<StaticConsignmentProps> = ({ consignm
         address,
         paypalFastlaneAddresses,
     );
+
+    if (isPickupConsignment(consignment)) {
+        return <StaticPickupConsignment consignment={consignment} />;
+    }
 
     return (
         <div className="staticConsignment">

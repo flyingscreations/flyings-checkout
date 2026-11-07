@@ -1,0 +1,37 @@
+.fulfillmentChoice {
+    margin-bottom: 1.5rem;
+}
+
+.fulfillmentChoice-label {
+    display: block;
+    font-weight: 700;
+}
+
+.fulfillmentChoice-detail {
+    display: block;
+    font-size: 0.875em;
+    opacity: 0.8;
+}
+
+.pickupLocation {
+    margin-bottom: 1.5rem;
+}
+
+.pickupLocation-name {
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.pickupLocation-address {
+    font-style: normal;
+}
+
+.pickupLocation-detail {
+    margin-top: 0.5rem;
+    white-space: pre-line;
+}
+
+.pickupLocation-notShipped {
+    font-weight: 700;
+    margin-top: 0.75rem;
+}
