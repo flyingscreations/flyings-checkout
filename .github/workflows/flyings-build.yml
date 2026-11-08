@@ -1,0 +1,43 @@
+name: Flying S checkout build
+on:
+  push:
+    branches: [flyings/native-pickup]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: flyings-build
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Pickup tests
+        run: npx jest -c packages/core/jest.config.js packages/core/src/app/shipping/pickup packages/core/src/app/checkout/getCheckoutStepStatuses.pickup.test.ts
+      - name: Core tests
+        run: npm run test:core
+      - name: Build
+        run: npm run build
+      - name: Stage build (never deployed to the store)
+        run: |
+          SHORT=${GITHUB_SHA::7}
+          mkdir -p site/builds/$SHORT
+          cp -R dist/. site/builds/$SHORT/
+          LOADER=$(cd site/builds/$SHORT && ls auto-loader-*.js | head -n1)
+          SRI="sha384-$(openssl dgst -sha384 -binary site/builds/$SHORT/$LOADER | openssl base64 -A)"
+          printf '{"commit":"%s","short":"%s","loader":"builds/%s/%s","sri":"%s","built_at":"%s"}\n' "$GITHUB_SHA" "$SHORT" "$SHORT" "$LOADER" "$SRI" "$(date -u +%FT%TZ)" > site/latest.json
+          touch site/.nojekyll
+          cat site/latest.json
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          publish_branch: gh-pages
+          keep_files: true
