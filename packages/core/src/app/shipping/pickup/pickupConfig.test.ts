@@ -1,6 +1,6 @@
 import {
     getLoadedPickupConfig,
-    isPickupPreview,
+    getPickupPreviewToken,
     loadPickupConfig,
     parsePickupConfig,
     resetPickupConfig,
@@ -41,11 +41,10 @@ describe('pickup configuration published by Product Hub', () => {
         expect(parsePickupConfig('nope')).toBeNull();
     });
 
-    it('previews pickup only with the explicit administrator flag', () => {
-        expect(isPickupPreview('?pickup_preview=1')).toBe(true);
-        expect(isPickupPreview('?x=1&pickup_preview=1')).toBe(true);
-        expect(isPickupPreview('')).toBe(false);
-        expect(isPickupPreview('?pickup_preview=10')).toBe(false);
+    it('reads only a signed preview token, never a bare flag', () => {
+        expect(getPickupPreviewToken('?pickup_preview=abcdefghijklmnopqrstuvwxyz.sig_123')).toBe('abcdefghijklmnopqrstuvwxyz.sig_123');
+        expect(getPickupPreviewToken('?pickup_preview=1')).toBe('');
+        expect(getPickupPreviewToken('')).toBe('');
     });
 
     it('loads once and caches a published configuration', async () => {

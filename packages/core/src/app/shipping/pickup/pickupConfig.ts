@@ -9,10 +9,13 @@ export const PICKUP_CONFIG_URL =
 
 const TIMEOUT_MS = 6000;
 
-// /checkout?pickup_preview=1 lets an administrator see pickup before native
-// pickup is activated in Product Hub. Customers never use this flag.
-export function isPickupPreview(search: string = typeof window === 'undefined' ? '' : window.location.search): boolean {
-    return /(?:^|[?&])pickup_preview=1(?:&|$)/.test(search);
+// /checkout?pickup_preview=<signed token> = an administrator preview. The token
+// is issued by Product Hub only to administrators and verified by Product Hub
+// (pickupCheckoutConfig); without a valid token customers get the normal view.
+export function getPickupPreviewToken(search: string = typeof window === 'undefined' ? '' : window.location.search): string {
+    const match = /(?:^|[?&])pickup_preview=([A-Za-z0-9_.%-]{20,600})(?:&|$)/.exec(search);
+
+    return match ? decodeURIComponent(match[1]) : '';
 }
 
 export interface PickupAddress {
@@ -93,7 +96,7 @@ export function getLoadedPickupConfig(): PickupConfig | null {
 
 export function loadPickupConfig(
     fetchFn: PickupFetch = (url, init) => fetch(url, init),
-    url: string = PICKUP_CONFIG_URL + (isPickupPreview() ? '?preview=1' : ''),
+    url: string = PICKUP_CONFIG_URL + (getPickupPreviewToken() ? `?preview_token=${encodeURIComponent(getPickupPreviewToken())}` : ''),
 ): Promise<PickupConfig | null> {
     if (pending) {
         return pending;
